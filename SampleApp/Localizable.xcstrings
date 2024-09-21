@@ -1,0 +1,45 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    " remove Git repo" : {
+
+    },
+    "Clone remote Git repo:%@" : {
+
+    },
+    "Create remote Git repo" : {
+
+    },
+    "loading" : {
+      "comment" : "加载中…",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "loading"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加载中…"
+          }
+        }
+      }
+    },
+    "Open test Git repo" : {
+
+    },
+    "Show" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "秀一下"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

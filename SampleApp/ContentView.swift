@@ -8,13 +8,19 @@ import SwiftUI
 import SwiftGit2
 
 let documentURL = try! FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+var localRepoLocation = documentURL.appendingPathComponent("BigMac")
+
+
 
 struct ContentView: View {
 
+    class VM : ObservableObject {
+        @Published var isFetching: Bool = false
+    }
+    @StateObject var vm: ContentView.VM = ContentView.VM()
     @State var message = ""
 
-    let localRepoLocation = documentURL.appendingPathComponent("BigMac")
-    let remoteRepoLocation = "https://github.com/light-tech/BigMac.git"
+    let remoteRepoLocation = "https://githubfast.com/sunknudsen/privacy-guides.git"
 
     init() {
         // git_libgit2_init()
@@ -24,36 +30,70 @@ struct ContentView: View {
     var body: some View {
         VStack {
             Button("Open test Git repo", action: testGitRepo)
-            Button("Clone remote Git repo", action: cloneGitRepo)
-            ScrollView {
-                Text(message)
+            HStack{
+                Button("Clone remote Git repo:\( vm.isFetching ? "Fetching" :"-" )", action: cloneGitRepo)
+                ActivityIndicator(isAnimating: Binding(get: {
+                    vm.isFetching
+                }, set: { v in
+                    vm.isFetching = v
+                }), style: UIActivityIndicatorView.Style.medium)
             }
+            Button(" remove Git repo", action: {
+              try?  FileManager.default.removeItem(at: localRepoLocation)
+            })
+
+            Button("Create remote Git repo", action: {
+
+                let documentURL = try! FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+                localRepoLocation = documentURL.appendingPathComponent("BigMac")
+            })
+                VStack{
+                    Text(message)
+                    EditorTreeView()
+                }
+            
         }.padding(5)
     }
 
+    
     func cloneGitRepo() {
-        let remote: URL = URL(string: remoteRepoLocation)!
+        vm.isFetching = true
+        Task.detached {
+            let remote: URL = URL(string: remoteRepoLocation)!
+            
+            let repo = remoteRepoLocation.components(separatedBy: "/").last?.components(separatedBy: ".git").first ?? "repo"
+          let repoURL =  URL(fileURLWithPath: localRepoLocation.absoluteString).appendingPathComponent(String(repo))
+            let result = Repository.clone(from: remote, to: repoURL)
+            await MainActor.run {
+                self.vm.isFetching = false
+            }
+            switch result {
+            case let .success(repo):
+                let latestCommit = repo
+                    .HEAD()
+                    .flatMap {
+                        repo.commit($0.oid)
+                    }
 
-        let result = Repository.clone(from: remote, to: localRepoLocation)
-        switch result {
-        case let .success(repo):
-            let latestCommit = repo
-                .HEAD()
-                .flatMap {
-                    repo.commit($0.oid)
+                switch latestCommit {
+                case let .success(commit):
+                    await MainActor.run {
+                        message = "Latest Commit: \(commit.message) by \(commit.author.name)"
+                    }
+
+                case let .failure(error):
+                    await MainActor.run {
+                        message = "Could not get commit: \(error)"
+                    }
                 }
 
-            switch latestCommit {
-            case let .success(commit):
-                message = "Latest Commit: \(commit.message) by \(commit.author.name)"
-
             case let .failure(error):
-                message = "Could not get commit: \(error)"
+                await MainActor.run {
+                    message = "Could not clone repository: \(error)"
+                }
             }
-
-        case let .failure(error):
-            message = "Could not clone repository: \(error)"
         }
+        
     }
 
     func testGitRepo() {
